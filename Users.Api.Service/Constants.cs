@@ -8,9 +8,11 @@ public static class UserEndPoints
     public const string USRCREATERECS = "create";
     public const string USRGETALLRECS = "getall";
     public const string USRGETONERECS = "getone";
+    public const string USRDELETERECS = "delete";
+    public const string USRUPDATERECS = "update";
 }
 
-public static class UserStrings
+public static class UserMessages
 {
     public const string SECURITYDEFINITIONNAME = "Bearer";
     public const string SERVICECOLLECTIONNAME = "Users";
@@ -21,4 +23,9 @@ public static class UserStrings
     public const string ALIASMAXSIZE = "La longitud máxima para el 'Alias' es de 16";
     public const string PASSWORDMINSIZE = "La longitud mímina para el 'Password' es de 8";
     public const string PASSWORDMAXSIZE = "La longitud máxima para el 'Password' es de 16";
+}
+
+public static class UserVersions
+{
+    public const double USERSV1 = 1.0;
 }

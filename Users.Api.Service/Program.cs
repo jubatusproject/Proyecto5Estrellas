@@ -19,7 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 
 // Add services to the container.
-builder.Services.AddMongo().AddMongoRepository<UsersEntity>(UserStrings.SERVICECOLLECTIONNAME);
+builder.Services.AddMongo().AddMongoRepository<UsersEntity>(UserMessages.SERVICECOLLECTIONNAME);
 
 var dbSettings = builder.Configuration.GetSection(nameof(MongoDbSettings)).Get<MongoDbSettings>();
 ArgumentNullException.ThrowIfNull(dbSettings);
@@ -30,7 +30,7 @@ builder.Services.AddHealthChecks();
 // Configuramos el Swagger para que nos permita ejecutar las API's desde el Navegador de forma segura con un BearerToken
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition(UserStrings.SECURITYDEFINITIONNAME, new OpenApiSecurityScheme
+    c.AddSecurityDefinition(UserMessages.SECURITYDEFINITIONNAME, new OpenApiSecurityScheme
     {
         Description = @"JMT Authorization header using the Bearer scheme. \r\n\r\n
             Enter 'Bearer' [space] and then your token in the text input below. \r\n\r\n
@@ -38,7 +38,7 @@ builder.Services.AddSwaggerGen(c =>
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
-        Scheme = UserStrings.SECURITYDEFINITIONNAME
+        Scheme = UserMessages.SECURITYDEFINITIONNAME
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement()
@@ -49,10 +49,10 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = UserStrings.SECURITYDEFINITIONNAME
+                    Id = UserMessages.SECURITYDEFINITIONNAME
                 },
                 Scheme = "oauth2",
-                Name = UserStrings.SECURITYDEFINITIONNAME,
+                Name = UserMessages.SECURITYDEFINITIONNAME,
                 In = ParameterLocation.Header,
             },
             new List<string>()
@@ -109,7 +109,7 @@ builder.Services.AddApiVersioning(options =>
 
 /// Requests Rate Limiter by Stefan Djokic → Email URL: https://mail.google.com/mail/u/0/?ogbl#label/Newsletter%2FStefan+Djokic/FMfcgzGslkkkQrPwRgfrxvcJprjmXrQg
 builder.Services.AddRateLimiter(rateLimiterOptions =>
-    rateLimiterOptions.AddFixedWindowLimiter(policyName: UserStrings.RATELIMITIRPOLICYNAME, options =>
+    rateLimiterOptions.AddFixedWindowLimiter(policyName: UserMessages.RATELIMITIRPOLICYNAME, options =>
     {
         options.PermitLimit = 10;                                           // A maximum of 10 requests
         options.Window = TimeSpan.FromSeconds(5);                           // Per 5 seconds window.
@@ -163,6 +163,6 @@ app.MapControllers();
 
 /* Requests Rate Limiter by Stefan Djokic */
 app.UseRateLimiter();
-app.MapDefaultControllerRoute().RequireRateLimiting(UserStrings.RATELIMITIRPOLICYNAME);
+app.MapDefaultControllerRoute().RequireRateLimiting(UserMessages.RATELIMITIRPOLICYNAME);
 
 await app.RunAsync().ConfigureAwait(false);
