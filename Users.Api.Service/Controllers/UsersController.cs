@@ -1,25 +1,35 @@
 using Asp.Versioning;
 using Jubatus.Common;
 using Microsoft.AspNetCore.Mvc;
+using Serilog;
 using Users.Api.Service.Dtos;
 using Users.Api.Service.Models;
+using Destructurama;
+using Microsoft.AspNetCore.Authorization;
+using Jubatus.Common.Serilog;
+using Users.Api.Service.Settings;
 
 namespace Users.Api.Service.Controllers;
 
+[Authorize]
 [ApiController]
-[ApiVersion(UserVersions.USERSV1)]
-[Route(UserEndPoints.ROOTUSERS)]
+[ApiVersion(ApiVersions.USERSV1)]
+[Route(ApiEndPoints.ROOTUSERS)]
 public class UsersController : ControllerBase
 {
     private readonly IRepository<UsersEntity> _usersRepository;
+
+    private readonly IConfiguration _configuration;
 
     /// <summary>
     /// 
     /// </summary>
     /// <param name="usersRepository"></param>
-    public UsersController(IRepository<UsersEntity> usersRepository)
+    /// <param name="configuration"></param>
+    public UsersController(IRepository<UsersEntity> usersRepository, IConfiguration configuration)
     {
         _usersRepository = usersRepository;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -27,16 +37,18 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    [MapToApiVersion(UserVersions.USERSV1)]
-    [Route(UserEndPoints.USRGETALLRECS)]
+    [MapToApiVersion(ApiVersions.USERSV1)]
+    [Route(ApiEndPoints.USRGETALLRECS)]
     public async Task<IActionResult> GetAllRecordsAsync()
     {
-        var result = await _usersRepository.GetAllAsync().ConfigureAwait(false);
+        IReadOnlyCollection<UsersEntity> result = await _usersRepository.GetAllAsync().ConfigureAwait(false);
+        using Serilog.Core.Logger log = Serilogger.GetLogger();
 
-        if (_usersRepository.ResultCode == StatusCodes.Status200OK)
-            return Ok(result.Select(item => item.AsUsersDto()));
-        else
-            return BadRequest(_usersRepository.ResultMessage);
+        log.Debug("GetAllRecordsAsync( returns: {Count} records ), resultCode: {Code}, resultMessage: {Msg}",
+            result.Count, _usersRepository.ResultCode, _usersRepository.ResultMessage);
+
+        return _usersRepository.ResultCode == StatusCodes.Status200OK ?
+            Ok(result.Select(item => item.AsUsersDto())) : BadRequest(_usersRepository.ResultMessage);
     }
 
     /// <summary>
@@ -45,11 +57,15 @@ public class UsersController : ControllerBase
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet]
-    [MapToApiVersion(UserVersions.USERSV1)]
-    [Route(UserEndPoints.USRGETONERECS)]
+    [MapToApiVersion(ApiVersions.USERSV1)]
+    [Route(ApiEndPoints.USRGETONERECS)]
     public async Task<IActionResult> GetOneRecordAsync([FromQuery] Guid id)
     {
-        var result = await _usersRepository.GetAsync(id).ConfigureAwait(false);
+        UsersEntity result = await _usersRepository.GetAsync(id).ConfigureAwait(false);
+        using Serilog.Core.Logger log = Serilogger.GetLogger();
+
+        log.Debug("GetOneRecordAsync( returns: {@Record} ), resultCode: {Code}, resultMessage: {Msg}",
+            result, _usersRepository.ResultCode, _usersRepository.ResultMessage);
 
         return _usersRepository.ResultCode switch
         {
@@ -65,31 +81,38 @@ public class UsersController : ControllerBase
     /// <param name="item"></param>
     /// <returns></returns>
     [HttpPost]
-    [MapToApiVersion(UserVersions.USERSV1)]
-    [Route(UserEndPoints.USRCREATERECS)]
+    [MapToApiVersion(ApiVersions.USERSV1)]
+    [Route(ApiEndPoints.USRCREATERECS)]
     public async Task<IActionResult> CreateRecordAsync([FromBody] NewUsersDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
         if (!ModelState.IsValid)
+        {
             return BadRequest(ModelState);
+        }
 
-        UsersEntity user = new()
+        JwtSettings? jwtSettings = _configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
+        ArgumentNullException.ThrowIfNull(jwtSettings);
+
+        UsersEntity newUser = new()
         {
             Id = Guid.NewGuid(),
             Alias = item.Alias,
             FirstName = item.FirstName,
             LastName = item.LastName,
-            Password = item.Password,
+            Password = await item.Password!.EncryptUserPassword(jwtSettings.JwtKey!),
             IsActive = item.IsActive
         };
 
-        await _usersRepository.CreateAsync(user).ConfigureAwait(false);
+        await _usersRepository.CreateAsync(newUser).ConfigureAwait(false);
+        using Serilog.Core.Logger log = Serilogger.GetLogger();
 
-        if (_usersRepository.ResultCode == StatusCodes.Status201Created)
-            return Ok(user.AsUsersDto());
-        else
-            return BadRequest(_usersRepository.ResultMessage);
+        log.Debug("CreateRecordAsync( creates: {@Record} ), resultCode: {Code}, resultMessage: {Msg}",
+            newUser, _usersRepository.ResultCode, _usersRepository.ResultMessage);
+
+        return _usersRepository.ResultCode == StatusCodes.Status201Created ?
+            Ok(newUser.AsUsersDto()) : BadRequest(_usersRepository.ResultMessage);
     }
 
     /// <summary>
@@ -98,32 +121,41 @@ public class UsersController : ControllerBase
     /// <param name="item"></param>
     /// <returns></returns>
     [HttpPut]
-    [MapToApiVersion(UserVersions.USERSV1)]
-    [Route(UserEndPoints.USRUPDATERECS)]
+    [MapToApiVersion(ApiVersions.USERSV1)]
+    [Route(ApiEndPoints.USRUPDATERECS)]
     public async Task<IActionResult> UpdateRecordAsync([FromQuery] Guid id, [FromBody] UpdUsersDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
         if (!ModelState.IsValid)
+        {
             return BadRequest(ModelState);
+        }
 
-        var currentItem = await _usersRepository.GetAsync(id).ConfigureAwait(false);
+        UsersEntity? currentItem = await _usersRepository.GetAsync(id).ConfigureAwait(false);
 
         if (currentItem is null)
         {
             return NotFound();
         }
 
+        JwtSettings? jwtSettings = _configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
+        ArgumentNullException.ThrowIfNull(jwtSettings);
+
         UsersEntity updatedItem = currentItem with
         {
             Alias = item.Alias,
             FirstName = item.FirstName,
             LastName = item.LastName,
-            Password = item.Password,
+            Password = await item.Password!.EncryptUserPassword(jwtSettings.JwtKey!),
             IsActive = item.IsActive
         };
 
         await _usersRepository.UpdateAsync(updatedItem).ConfigureAwait(false);
+        using Serilog.Core.Logger log = Serilogger.GetLogger();
+
+        log.Debug("UpdateRecordAsync( updates: {@Record} ), resultCode: {Code}, resultMessage: {Msg}",
+            updatedItem, _usersRepository.ResultCode, _usersRepository.ResultMessage);
 
         return _usersRepository.ResultCode switch
         {
@@ -139,11 +171,15 @@ public class UsersController : ControllerBase
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpDelete]
-    [MapToApiVersion(UserVersions.USERSV1)]
-    [Route(UserEndPoints.USRDELETERECS)]
+    [MapToApiVersion(ApiVersions.USERSV1)]
+    [Route(ApiEndPoints.USRDELETERECS)]
     public async Task<IActionResult> DeleteRecordAsync([FromQuery] Guid id)
     {
         await _usersRepository.RemoveAsync(id).ConfigureAwait(false);
+        using Serilog.Core.Logger log = Serilogger.GetLogger();
+
+        log.Debug("DeleteRecordAsync( resultCode: {Code}, resultMessage: {Msg} )",
+            _usersRepository.ResultCode, _usersRepository.ResultMessage);
 
         return _usersRepository.ResultCode switch
         {

@@ -13,16 +13,14 @@ using Users.Api.Service;
 using Users.Api.Service.Models;
 using Users.Api.Service.Settings;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
 // Add services to the container.
-builder.Services.AddMongo().AddMongoRepository<UsersEntity>(UserMessages.SERVICECOLLECTIONNAME);
-
-var dbSettings = builder.Configuration.GetSection(nameof(MongoDbSettings)).Get<MongoDbSettings>();
-ArgumentNullException.ThrowIfNull(dbSettings);
+builder.Services.AddMongo()
+    .AddMongoRepository<UsersEntity>(ApiMessages.SERVICECOLLECTIONNAME);
 
 // Adicionamos el HealthCheck del Servicio
 builder.Services.AddHealthChecks();
@@ -30,7 +28,7 @@ builder.Services.AddHealthChecks();
 // Configuramos el Swagger para que nos permita ejecutar las API's desde el Navegador de forma segura con un BearerToken
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition(UserMessages.SECURITYDEFINITIONNAME, new OpenApiSecurityScheme
+    c.AddSecurityDefinition(ApiMessages.SECURITYDEFINITIONNAME, new OpenApiSecurityScheme
     {
         Description = @"JMT Authorization header using the Bearer scheme. \r\n\r\n
             Enter 'Bearer' [space] and then your token in the text input below. \r\n\r\n
@@ -38,7 +36,7 @@ builder.Services.AddSwaggerGen(c =>
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
-        Scheme = UserMessages.SECURITYDEFINITIONNAME
+        Scheme = ApiMessages.SECURITYDEFINITIONNAME
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement()
@@ -49,10 +47,10 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = UserMessages.SECURITYDEFINITIONNAME
+                    Id = ApiMessages.SECURITYDEFINITIONNAME
                 },
                 Scheme = "oauth2",
-                Name = UserMessages.SECURITYDEFINITIONNAME,
+                Name = ApiMessages.SECURITYDEFINITIONNAME,
                 In = ParameterLocation.Header,
             },
             new List<string>()
@@ -62,12 +60,9 @@ builder.Services.AddSwaggerGen(c =>
 
 /* Con la línea "options.SuppressAsyncSuffixInActionNames = false;" le estamos diciendo al compilador que No ...
    ... elimine el sufijo "Async" de los nombres de los métodos, ejemplo cuando usamos: nameof(MethodNameAsync) */
-builder.Services.AddControllers(options =>
-{
-    options.SuppressAsyncSuffixInActionNames = false;
-});
+builder.Services.AddControllers(options => options.SuppressAsyncSuffixInActionNames = false);
 
-var jwtSettings = builder.Configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
+JwtSettings? jwtSettings = builder.Configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
 ArgumentNullException.ThrowIfNull(jwtSettings);
 
 // Adding JWT
@@ -77,15 +72,15 @@ builder.Services.AddAuthentication(auth =>
     auth.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(o =>
 {
-    var Key = Encoding.UTF8.GetBytes(jwtSettings.JwtKey);
+    byte[] Key = Encoding.UTF8.GetBytes(jwtSettings.JwtKey!);
 
     o.SaveToken = true;
     o.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        ValidateIssuer = jwtSettings.ValidateIssuer,
+        ValidateAudience = jwtSettings.ValidateAudience,
+        ValidateLifetime = jwtSettings.ValidateLifetime,
+        ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
         ValidIssuer = jwtSettings.JwtIssuer,
         ValidAudience = jwtSettings.JwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Key)
@@ -109,7 +104,7 @@ builder.Services.AddApiVersioning(options =>
 
 /// Requests Rate Limiter by Stefan Djokic → Email URL: https://mail.google.com/mail/u/0/?ogbl#label/Newsletter%2FStefan+Djokic/FMfcgzGslkkkQrPwRgfrxvcJprjmXrQg
 builder.Services.AddRateLimiter(rateLimiterOptions =>
-    rateLimiterOptions.AddFixedWindowLimiter(policyName: UserMessages.RATELIMITIRPOLICYNAME, options =>
+    rateLimiterOptions.AddFixedWindowLimiter(policyName: ApiMessages.RATELIMITIRPOLICYNAME, options =>
     {
         options.PermitLimit = 10;                                           // A maximum of 10 requests
         options.Window = TimeSpan.FromSeconds(5);                           // Per 5 seconds window.
@@ -118,7 +113,7 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
     })
 );
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -129,18 +124,18 @@ if (app.Environment.IsDevelopment())
 }
 
 /// Adicionamos el HealthCheck para validar el estado del Servicio
-app.MapHealthChecks(UserEndPoints.HEALTHCHECKUSERSLIVE, new HealthCheckOptions
+app.MapHealthChecks(ApiEndPoints.HEALTHCHECKUSERSLIVE, new HealthCheckOptions
 {
     Predicate = (_) => false
 });
 
 /* Adicionamos el HealthCheck para validar el estado de la conexión a MongoDB */
-app.MapHealthChecks(UserEndPoints.HEALTHCHECKUSERSREADY, new HealthCheckOptions
+app.MapHealthChecks(ApiEndPoints.HEALTHCHECKUSERSREADY, new HealthCheckOptions
 {
     Predicate = (check) => check.Tags.Contains("ready"),
     ResponseWriter = async (context, report) =>
     {
-        var result = JsonSerializer.Serialize(new
+        string? result = JsonSerializer.Serialize(new
         {
             status = report.Status.ToString(),
             checks = report.Entries.Select(entry => new
@@ -163,6 +158,6 @@ app.MapControllers();
 
 /* Requests Rate Limiter by Stefan Djokic */
 app.UseRateLimiter();
-app.MapDefaultControllerRoute().RequireRateLimiting(UserMessages.RATELIMITIRPOLICYNAME);
+app.MapDefaultControllerRoute().RequireRateLimiting(ApiMessages.RATELIMITIRPOLICYNAME);
 
 await app.RunAsync().ConfigureAwait(false);
