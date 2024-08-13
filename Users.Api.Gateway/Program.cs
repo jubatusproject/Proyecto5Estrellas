@@ -8,7 +8,7 @@ using Microsoft.OpenApi.Models;
 using Users.Api.Gateway;
 using Users.Api.Gateway.Settings;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -16,7 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 // Configuramos el Swagger para que nos permita ejecutar las API's desde el Navegador de forma segura con un BearerToken
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    c.AddSecurityDefinition(ApiMessages.SecurityDefinitionName, new OpenApiSecurityScheme
     {
         Description = @"JMT Authorization header using the Bearer scheme. \r\n\r\n
             Enter 'Bearer' [space] and then your token in the text input below. \r\n\r\n
@@ -24,7 +24,7 @@ builder.Services.AddSwaggerGen(c =>
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Scheme = ApiMessages.SecurityDefinitionName
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement()
@@ -35,10 +35,10 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                    Id = ApiMessages.SecurityDefinitionName
                 },
                 Scheme = "oauth2",
-                Name = "Bearer",
+                Name = ApiMessages.SecurityDefinitionName,
                 In = ParameterLocation.Header,
             },
             new List<string>()
@@ -46,14 +46,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-/* Con la línea "options.SuppressAsyncSuffixInActionNames = false;" le estamos diciendo al compilador que No ...
-   ... elimine el sufijo "Async" de los nombres de los métodos, ejemplo cuando usamos: nameof(MethodNameAsync) */
-builder.Services.AddControllers(options =>
-{
-    options.SuppressAsyncSuffixInActionNames = false;
-});
-
-var jwtSettings = builder.Configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
+JwtSettings? jwtSettings = builder.Configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
 ArgumentNullException.ThrowIfNull(jwtSettings);
 
 // Adding JWT
@@ -63,15 +56,15 @@ builder.Services.AddAuthentication(auth =>
     auth.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(o =>
 {
-    var Key = Encoding.UTF8.GetBytes(jwtSettings.JwtKey);
+    byte[] Key = Encoding.UTF8.GetBytes(jwtSettings.JwtKey!);
 
     o.SaveToken = true;
     o.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        ValidateIssuer = jwtSettings.ValidateIssuer,
+        ValidateAudience = jwtSettings.ValidateAudience,
+        ValidateLifetime = jwtSettings.ValidateLifetime,
+        ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
         ValidIssuer = jwtSettings.JwtIssuer,
         ValidAudience = jwtSettings.JwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Key)
@@ -89,13 +82,17 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
     })
 );
 
-/// Adicionamos el Servicio de Reverse Proxy Server (API Gateway)
-builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+/* Con la línea "options.SuppressAsyncSuffixInActionNames = false;" le estamos diciendo al compilador que No ...
+   ... elimine el sufijo "Async" de los nombres de los métodos, ejemplo cuando usamos: nameof(MethodNameAsync) */
+builder.Services.AddControllers(options => options.SuppressAsyncSuffixInActionNames = false);
 
 /// Adicionamos el HealthCheck del Servicio
 builder.Services.AddHealthChecks();
 
-var app = builder.Build();
+/// Adicionamos el Servicio de Reverse Proxy Server (API Gateway)
+builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -106,7 +103,7 @@ if (app.Environment.IsDevelopment())
 }
 
 /// Adicionamos el HealthCheck para validar el estado del Servicio
-app.MapHealthChecks(ApiEndPoints.HEALTHCHECKGATEWAYLIVE, new HealthCheckOptions
+app.MapHealthChecks(ApiEndPoints.HealthCheckGatewayLive, new HealthCheckOptions
 {
     Predicate = (_) => false
 });
@@ -117,6 +114,7 @@ app.MapControllers();
 
 /* Requests Rate Limiter by Stefan Djokic */
 app.UseRateLimiter();
-app.MapDefaultControllerRoute().RequireRateLimiting("fixed");
+app.MapDefaultControllerRoute().RequireRateLimiting(ApiMessages.RateLimiterPolicyName);
+app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);

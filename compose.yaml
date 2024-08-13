@@ -1,0 +1,59 @@
+services:
+  api-gateway:
+    image: users.api.gateway:v1
+    ports:
+      - 7081:7030
+    links:
+      - users-api
+    volumes:
+      - ${HOME}/.microsoft/usersecrets/:/root/.microsoft/usersecrets
+      - ${HOME}/.aspnet/https:/root/.aspnet/https/
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=7030
+      - JwtSettings:ValidateLifetime=${ValidateLifetime}
+      - JwtSettings:ValidateIssuerSigningKey=${ValidateIssuerSigningKey}
+      - JwtSettings:ValidateIssuer=${ValidateIssuer}
+      - JwtSettings:ValidateAudience=${ValidateAudience}
+      - JwtSettings:JwtKey=${JwtKey}
+      - JwtSettings:JwtIssuer=${JwtIssuer}
+      - JwtSettings:JwtAudience=${JwtAudience}
+      - JwtSettings:AuthUser=${AuthUser}
+      - JwtSettings:AuthPass=${AuthPass}
+      - ReverseProxy:Clusters:users-cluster:Destinations:destination1:Address=http://users-api:7031/
+  users-api:
+    image: users.api.service:v1
+    ports:
+      - 7031:7031
+    links:
+      - monguito-db
+    volumes:
+      - ${HOME}/.microsoft/usersecrets/:/root/.microsoft/usersecrets
+      - ${HOME}/.aspnet/https:/root/.aspnet/https/
+    environment:
+      - MongoDbSettings:Host=monguito-db
+      - MongoDbSettings:UserName=${UserName}
+      - MongoDbSettings:UserPass=${UserPass}
+      - JwtSettings:ValidateLifetime=${ValidateLifetime}
+      - JwtSettings:ValidateIssuerSigningKey=${ValidateIssuerSigningKey}
+      - JwtSettings:ValidateIssuer=${ValidateIssuer}
+      - JwtSettings:ValidateAudience=${ValidateAudience}
+      - JwtSettings:JwtKey=${JwtKey}
+      - JwtSettings:JwtIssuer=${JwtIssuer}
+      - JwtSettings:JwtAudience=${JwtAudience}
+      - JwtSettings:AuthUser=${AuthUser}
+      - JwtSettings:AuthPass=${AuthPass}
+      - ServiceSettings:ServiceName=UsersMicroService
+      - ASPNETCORE_HTTP_PORTS=7031
+  monguito-db:
+    image: mongo
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${UserName}
+      - MONGO_INITDB_ROOT_PASSWORD=${UserPass}
+    volumes:
+      - mongodbdata:/data/db
+
+volumes:
+  mongodbdata:

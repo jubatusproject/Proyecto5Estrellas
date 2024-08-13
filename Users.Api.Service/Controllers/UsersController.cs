@@ -13,8 +13,8 @@ namespace Users.Api.Service.Controllers;
 
 [Authorize]
 [ApiController]
-[ApiVersion(ApiVersions.USERSV1)]
-[Route(ApiEndPoints.ROOTUSERS)]
+[ApiVersion(ApiVersions.UsersApiV1)]
+[Route(ApiEndPoints.RootUsers)]
 public class UsersController : ControllerBase
 {
     private readonly IRepository<UsersEntity> _usersRepository;
@@ -37,8 +37,8 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    [MapToApiVersion(ApiVersions.USERSV1)]
-    [Route(ApiEndPoints.USRGETALLRECS)]
+    [MapToApiVersion(ApiVersions.UsersApiV1)]
+    [Route(ApiEndPoints.UserGetAllRecs)]
     public async Task<IActionResult> GetAllRecordsAsync()
     {
         IReadOnlyCollection<UsersEntity> result = await _usersRepository.GetAllAsync().ConfigureAwait(false);
@@ -57,8 +57,8 @@ public class UsersController : ControllerBase
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet]
-    [MapToApiVersion(ApiVersions.USERSV1)]
-    [Route(ApiEndPoints.USRGETONERECS)]
+    [MapToApiVersion(ApiVersions.UsersApiV1)]
+    [Route(ApiEndPoints.UserGetOneRecs)]
     public async Task<IActionResult> GetOneRecordAsync([FromQuery] Guid id)
     {
         UsersEntity result = await _usersRepository.GetAsync(id).ConfigureAwait(false);
@@ -81,8 +81,8 @@ public class UsersController : ControllerBase
     /// <param name="item"></param>
     /// <returns></returns>
     [HttpPost]
-    [MapToApiVersion(ApiVersions.USERSV1)]
-    [Route(ApiEndPoints.USRCREATERECS)]
+    [MapToApiVersion(ApiVersions.UsersApiV1)]
+    [Route(ApiEndPoints.UserCreateRecs)]
     public async Task<IActionResult> CreateRecordAsync([FromBody] NewUsersDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -121,8 +121,8 @@ public class UsersController : ControllerBase
     /// <param name="item"></param>
     /// <returns></returns>
     [HttpPut]
-    [MapToApiVersion(ApiVersions.USERSV1)]
-    [Route(ApiEndPoints.USRUPDATERECS)]
+    [MapToApiVersion(ApiVersions.UsersApiV1)]
+    [Route(ApiEndPoints.UserUpdateRecs)]
     public async Task<IActionResult> UpdateRecordAsync([FromQuery] Guid id, [FromBody] UpdUsersDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -171,8 +171,8 @@ public class UsersController : ControllerBase
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpDelete]
-    [MapToApiVersion(ApiVersions.USERSV1)]
-    [Route(ApiEndPoints.USRDELETERECS)]
+    [MapToApiVersion(ApiVersions.UsersApiV1)]
+    [Route(ApiEndPoints.UserDeleteRecs)]
     public async Task<IActionResult> DeleteRecordAsync([FromQuery] Guid id)
     {
         await _usersRepository.RemoveAsync(id).ConfigureAwait(false);

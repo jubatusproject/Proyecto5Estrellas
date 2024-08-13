@@ -15,8 +15,8 @@ namespace Users.Api.Service.Controllers;
 
 [Authorize]
 [ApiController]
-[ApiVersion(ApiVersions.AUTHV1)]
-[Route(ApiEndPoints.AUTHUSERS)]
+[ApiVersion(ApiVersions.AuthUserV1)]
+[Route(ApiEndPoints.AuthUsers)]
 public class AuthController : ControllerBase
 {
     #region private data
@@ -41,8 +41,8 @@ public class AuthController : ControllerBase
     /// <returns></returns>
     [AllowAnonymous]
     [HttpPost]
-    [MapToApiVersion(ApiVersions.AUTHV1)]
-    [Route(ApiEndPoints.CHECKUSERAUTH)]
+    [MapToApiVersion(ApiVersions.AuthUserV1)]
+    [Route(ApiEndPoints.CheckUsersAuth)]
     public async Task<ActionResult> AuthenticateAsync([FromBody] AuthUserDto authUser)
     {
         using Serilog.Core.Logger log = Serilogger.GetLogger();

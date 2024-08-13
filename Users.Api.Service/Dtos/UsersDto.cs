@@ -37,18 +37,18 @@ public record UsersDto : IEntity
 /// </summary>
 public record NewUsersDto
 {
-    [Required(ErrorMessage = ApiMessages.ALIASISREQUIRED)]
-    [MinLength(8, ErrorMessage = ApiMessages.ALIASMINSIZE)]
-    [MaxLength(16, ErrorMessage = ApiMessages.ALIASMAXSIZE)]
+    [Required(ErrorMessage = ApiMessages.AliasIsRequired)]
+    [MinLength(8, ErrorMessage = ApiMessages.AliasMinSize)]
+    [MaxLength(16, ErrorMessage = ApiMessages.AliasMaxSize)]
     public string? Alias { get; init; }
 
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
 
     [NotLogged]
-    [Required(ErrorMessage = ApiMessages.PASSWORDISREQUIRED)]
-    [MinLength(8, ErrorMessage = ApiMessages.PASSWORDMINSIZE)]
-    [MaxLength(16, ErrorMessage = ApiMessages.PASSWORDMAXSIZE)]
+    [Required(ErrorMessage = ApiMessages.PasswordIsRequired)]
+    [MinLength(8, ErrorMessage = ApiMessages.PasswordMinSize)]
+    [MaxLength(16, ErrorMessage = ApiMessages.PasswordMaxSize)]
     public string? Password { get; init; }
 
     public bool IsActive { get; init; } = true;
@@ -59,18 +59,18 @@ public record NewUsersDto
 /// </summary>
 public record UpdUsersDto
 {
-    [Required(ErrorMessage = ApiMessages.ALIASISREQUIRED)]
-    [MinLength(8, ErrorMessage = ApiMessages.ALIASMINSIZE)]
-    [MaxLength(16, ErrorMessage = ApiMessages.ALIASMAXSIZE)]
+    [Required(ErrorMessage = ApiMessages.AliasIsRequired)]
+    [MinLength(8, ErrorMessage = ApiMessages.AliasMinSize)]
+    [MaxLength(16, ErrorMessage = ApiMessages.AliasMaxSize)]
     public string? Alias { get; init; }
 
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
 
     [NotLogged]
-    [Required(ErrorMessage = ApiMessages.PASSWORDISREQUIRED)]
-    [MinLength(8, ErrorMessage = ApiMessages.PASSWORDMINSIZE)]
-    [MaxLength(16, ErrorMessage = ApiMessages.PASSWORDMAXSIZE)]
+    [Required(ErrorMessage = ApiMessages.PasswordIsRequired)]
+    [MinLength(8, ErrorMessage = ApiMessages.PasswordMinSize)]
+    [MaxLength(16, ErrorMessage = ApiMessages.PasswordMaxSize)]
     public string? Password { get; init; }
 
     public bool IsActive { get; init; } = true;
